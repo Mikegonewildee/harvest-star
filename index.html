@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harvest Star · crop rotation planner built on NASA Earth data</title>
+<meta name="description" content="Harvest Star replays your field's real weather from NASA to test crop rotations before you commit. NASA Space Apps 2026, Field Shift.">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#030A1F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Harvest Star">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://server.arcgisonline.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,800&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --navy:#061230; --tile:rgba(5,17,44,.86); --tile2:rgba(10,30,70,.75); --cy:#22E0F0; --cyglow:rgba(34,224,240,.35);
+  --line:rgba(120,190,255,.28); --text:#FFFFFF; --soft:#E6EEFA; --muted:#BFD0EA; --link:#8FE9F5;
+  --green:#3FD087; --amber:#F7C14D; --red:#FF7A66; --leaf:#8BE04E;
+}
+*{box-sizing:border-box}
+html{background:#030A1F}
+body{margin:0;color:var(--text);font-family:'Fira Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;
+  background:url(stars.svg),linear-gradient(180deg,#030A1F 0%,#051A47 38%,#083A8C 72%,#0C56B8 100%);
+  background-attachment:fixed}
+a{color:var(--link)}
+button,select,input{font-family:inherit}
+:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 18px}
+/* top bar */
+header.bar{border-bottom:1px solid var(--line);background:rgba(3,10,31,.72);backdrop-filter:blur(6px);position:sticky;top:0;z-index:900}
+header.bar .wrap{display:flex;align-items:center;gap:14px;height:62px}
+.brand{display:flex;align-items:center;gap:12px;background:none;border:0;color:#fff;cursor:pointer;padding:0}
+.brand img{width:42px;height:42px}
+.brand span{font-style:italic;font-weight:800;font-size:25px;letter-spacing:.2px;white-space:nowrap}
+@media (max-width:420px){.brand span{font-size:21px}.brand img{width:36px;height:36px}.install{font-size:13px;padding:0 11px}}
+nav.top{margin-left:auto;display:none;gap:6px}
+.install{margin-left:auto;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;border:1.5px solid var(--cy);background:rgba(8,26,62,.7);color:#fff;font-size:14.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+.install svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.tip{position:fixed;inset:0;z-index:2000;background:rgba(2,8,24,.72);display:grid;place-items:center;padding:18px}
+.tip .tile{max-width:460px}.tip ul{margin:0;padding-left:20px;line-height:1.55;color:var(--soft)}
+nav.top button{background:none;border:0;color:var(--soft);font-size:17px;font-weight:500;padding:8px 16px;cursor:pointer;border-bottom:3px solid transparent;min-height:44px}
+nav.top button[aria-current="page"]{color:#fff;font-weight:700;border-bottom-color:var(--cy)}
+/* bottom nav (phone) */
+nav.bottom{position:fixed;left:12px;right:12px;bottom:10px;z-index:900;background:rgba(4,14,38,.94);border:1.5px solid rgba(120,190,255,.5);border-radius:22px;display:grid;grid-template-columns:repeat(4,1fr);height:68px}
+nav.bottom button{background:none;border:0;color:var(--soft);font-size:13.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;position:relative}
+nav.bottom button[aria-current="page"]{color:var(--cy);font-weight:700}
+nav.bottom button[aria-current="page"]::after{content:"";position:absolute;bottom:7px;width:44px;height:3px;border-radius:2px;background:var(--cy)}
+nav svg,.ico{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+main{padding:18px 0 110px}
+.screen{display:none}.screen.on{display:block}
+h1{margin:0;font-size:30px;line-height:1.12;font-weight:800}
+h2{margin:0;font-size:21px;font-weight:700}
+h3{margin:0;font-size:17px;font-weight:700}
+p{margin:0;line-height:1.45}
+.lead{font-size:17px;color:var(--soft);margin-top:8px;max-width:760px}
+.small{font-size:14px;color:var(--muted);line-height:1.45}
+.stack{display:flex;flex-direction:column;gap:16px}
+.tile{background:url(stars-tile.svg),var(--tile);border:2px solid var(--cy);border-radius:22px;box-shadow:0 0 18px var(--cyglow), inset 0 0 22px rgba(34,224,240,.06);padding:18px;display:flex;flex-direction:column;gap:12px}
+.tile.quiet{border:1.5px solid var(--line);box-shadow:none}
+button.tile{color:#fff;text-align:left;cursor:pointer;flex-direction:row;align-items:center;gap:16px;font-size:21px;font-weight:700;line-height:1.2;width:100%}
+button.tile:hover{background:url(stars-tile.svg),rgba(10,34,80,.92)}
+button.tile .lbl{display:flex;flex-direction:column;gap:5px}
+button.tile .lbl small{font-size:12.5px;font-weight:500;color:var(--muted);letter-spacing:.02em;line-height:1.35}
+button.tile .ico{width:44px;height:44px;flex:none}
+button.tile .sep{width:1.5px;align-self:stretch;background:rgba(255,255,255,.55)}
+button.tile .chev{margin-left:auto;width:26px;height:26px;flex:none;stroke-width:2.6}
+button.tile.big{font-size:32px;font-weight:800;padding:24px 22px;white-space:nowrap}
+button.tile.big .ico{width:74px;height:60px}
+.inner{background:var(--tile2);border:1px solid var(--line);border-radius:14px;padding:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{min-height:46px;padding:0 18px;border-radius:999px;font-size:16px;cursor:pointer;border:1.5px solid rgba(160,205,255,.55);background:rgba(8,26,62,.7);color:#fff;font-weight:600}
+.chip[aria-pressed="true"]{border-color:var(--cy);background:var(--cy);color:#04122E;font-weight:700}
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;min-height:60px;border-radius:18px;border:0;background:var(--cy);color:#04122E;font-size:21px;font-weight:800;cursor:pointer;padding:0 20px;box-shadow:0 0 22px var(--cyglow);width:100%}
+.btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+.btn.ghost{background:rgba(8,26,62,.7);color:#fff;border:1.5px solid rgba(160,205,255,.55);font-weight:700;font-size:16px;min-height:46px;box-shadow:none;width:auto}
+label.field{display:flex;flex-direction:column;gap:6px;font-size:15px;font-weight:600;color:var(--soft)}
+select{min-height:48px;border-radius:12px;border:1.5px solid rgba(160,205,255,.55);background:#0A1E46;color:#fff;font-size:17px;padding:0 10px;width:100%}
+.check{display:flex;align-items:center;gap:10px;min-height:44px;font-size:16px;color:var(--soft);cursor:pointer}
+.check input{width:22px;height:22px;accent-color:var(--cy)}
+details>summary{cursor:pointer;color:var(--link);font-weight:700;font-size:16px;min-height:44px;display:flex;align-items:center;list-style:none}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"+";display:inline-grid;place-items:center;width:24px;height:24px;border:1.5px solid var(--link);border-radius:50%;margin-right:10px;font-weight:700}
+details[open]>summary::before{content:"–"}
+.step{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--cy);color:#04122E;font-weight:800;font-size:16px;margin-right:10px;flex:none}
+.steph{display:flex;align-items:center}
+/* home */
+.hero{text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0 4px}
+.hero .cta{width:100%}.hero img{width:170px;height:170px;filter:drop-shadow(0 0 26px rgba(80,170,255,.55))}
+.kick{letter-spacing:.42em;font-size:15px;font-weight:500;color:#fff;margin-top:6px}
+.title{font-style:italic;font-weight:800;font-size:58px;line-height:1;text-shadow:0 4px 18px rgba(0,0,0,.5)}
+.sub{font-size:27px;font-weight:700}
+.rule{display:flex;align-items:center;gap:12px;letter-spacing:.26em;white-space:nowrap;font-size:12px;font-weight:500;margin-top:6px}
+.rule::before,.rule::after{content:"";height:2.5px;width:40px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--cy))}
+.rule::after{transform:scaleX(-1)}
+.tag{font-size:18px;color:var(--soft);max-width:520px;margin-top:6px}
+.homegrid{display:grid;gap:16px;margin-top:18px}
+.fields h2{font-size:27px;font-weight:800}
+.frow{display:flex;align-items:center;gap:14px;width:100%;background:none;border:0;border-top:1px solid var(--line);color:#fff;font-size:19px;font-weight:600;padding:14px 4px;cursor:pointer;text-align:left}
+.fwrap{display:flex;align-items:center;border-top:1px solid var(--line)}.fwrap:first-of-type{border-top:0}.fwrap .frow{border-top:0}
+.fdel{flex:none;background:none;border:1px solid transparent;color:var(--muted);font-size:16px;font-weight:600;min-width:40px;min-height:40px;padding:6px 10px;margin-left:6px;border-radius:10px;cursor:pointer}
+.fdel:hover,.fdel:focus-visible{color:#fff;border-color:var(--line)}
+.fdel.arm,.fclear.arm{color:#FF9C8C;border-color:#FF9C8C}
+.fclear{background:none;border:1px solid var(--line);color:var(--muted);font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px;cursor:pointer}
+.fclear:hover,.fclear:focus-visible{color:#fff}
+.frow:first-of-type{border-top:0}
+.frow .ico{width:38px;height:24px}.frow .chev{margin-left:auto;width:22px;height:22px;stroke-width:2.6}
+#home.on{display:flex;flex-direction:column;min-height:calc(100dvh - 190px)}
+.hills{margin:10px -18px -110px;line-height:0;flex:1;min-height:170px;position:relative}.hills .land{position:absolute;inset:0;width:100%;height:100%}
+.hills .sprout{position:absolute;left:50%;bottom:58%;transform:translateX(-50%);height:42%;max-height:130px;width:auto}
+/* field */
+#map{height:270px;border-radius:18px;border:2px solid var(--cy);box-shadow:0 0 18px var(--cyglow);overflow:hidden;background:#0A1E46}
+.leaflet-container{font-family:inherit}
+.find{display:flex;gap:8px}.find input{flex:1;min-width:0;min-height:46px;border-radius:12px;border:1.5px solid rgba(160,205,255,.55);background:#0A1E46;color:#fff;font-size:16px;padding:0 12px}
+.find input::placeholder{color:#9FB4D6}.find .btn{gap:6px;padding:0 14px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+#layerChips .chip{min-height:40px;font-size:14.500px;padding:0 13px}
+.traits{display:grid;gap:6px;margin:6px 0 10px}.traits div{display:flex;justify-content:space-between;gap:12px;background:var(--tile2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14.5px;color:var(--muted)}.traits b{text-align:right;color:#fff}.traits .t0{color:#8FE9B5}.traits .t1{color:var(--amber)}.traits .t2{color:#FF9C8C}
+.stats.four{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cols{display:grid;gap:16px}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.progress{font-size:16px;color:#fff;display:flex;align-items:center;gap:10px}
+.spin{width:20px;height:20px;border-radius:50%;border:3px solid rgba(255,255,255,.3);border-top-color:var(--cy);animation:sp .8s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* plan */
+.verdict{border-color:var(--leaf);box-shadow:0 0 20px rgba(139,224,78,.3)}
+.verdict .big{font-size:28px;font-weight:800;line-height:1.15}
+.verdict .gain{font-size:19px;font-weight:600;color:#C9F7A8}
+.plans{display:grid;gap:16px}
+.calib{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:rgba(8,26,62,.8);border:1.5px solid var(--cy);border-radius:16px;padding:12px 16px;color:var(--soft);font-size:15.5px;line-height:1.4;cursor:pointer}
+.calib b{color:#fff}.calib .tagc{flex:none;background:var(--cy);color:#04122E;font-weight:800;font-size:13px;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:5px 11px}
+.calbars{display:grid;gap:8px;margin:4px 0}
+.calbars .r{display:grid;grid-template-columns:150px 1fr;align-items:center;gap:10px;font-size:15px;color:var(--soft)}
+.calbars .bar{height:26px;border-radius:8px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;font-weight:800;color:#04122E;font-size:14px;min-width:90px}
+.steps3{display:grid;gap:10px}.steps3 div{background:var(--tile2);border:1px solid var(--line);border-radius:14px;padding:12px;font-size:15px;line-height:1.45;color:var(--soft)}.steps3 b{display:block;color:#fff;font-size:16px;margin-bottom:2px}
+.badge{padding:6px 12px;border-radius:999px;font-size:14px;font-weight:700;display:inline-block}
+.b-best{background:#1F7A45;color:#fff}.b-2{background:#1D4F9A;color:#fff}.b-3{background:#33415F;color:#fff}.b-now{border:1.5px solid rgba(160,205,255,.6);color:#fff}
+.seq{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap}
+.yr{background:var(--tile2);border:1px solid var(--line);border-radius:12px;padding:7px 10px;font-size:16px;font-weight:700}
+.yr small{display:block;font-size:12px;color:var(--muted);font-weight:600}
+.arrow{align-self:center;color:var(--muted);font-weight:700}
+.say{font-size:17px;line-height:1.4;color:#fff}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.stat{background:var(--tile2);border:1px solid var(--line);border-radius:14px;padding:10px}
+.stat .k{font-size:13px;font-weight:600;color:var(--muted)}
+.stat .v{font-size:24px;font-weight:800;line-height:1.15;margin-top:2px}
+.stat .s{font-size:12.5px;color:var(--muted);margin-top:2px}
+.lights{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.light{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;font-weight:700;color:var(--soft);text-align:center}
+.dot{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:15px;font-weight:900;color:#04122E}
+.l0{background:var(--green)}.l1{background:var(--amber)}.l2{background:var(--red)}
+.light small{font-weight:600;color:var(--muted);font-size:12px}
+.watch{font-size:15px;line-height:1.4;color:var(--soft);display:flex;gap:8px}
+.watch b{flex:none}
+.w1 b{color:var(--amber)}.w2 b{color:var(--red)}
+.more ul{margin:6px 0 10px;padding-left:20px;line-height:1.5;font-size:15px;color:var(--soft)}
+.more .subhead{font-size:13px;font-weight:700;color:var(--link);text-transform:uppercase;letter-spacing:.6px;margin-top:6px}
+.strip{display:grid;grid-template-columns:repeat(36,1fr);gap:2px;margin-top:4px}
+.strip span{height:14px;border-radius:3px}
+.m-g{background:#3FD087}.m-c{background:repeating-linear-gradient(135deg,#3FD087 0 3px,#1c4a3c 3px 6px)}.m-b{background:#7A6248}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:4px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-2px}
+/* changed */
+.chg{display:grid;gap:12px}
+.chg .tile{gap:6px}
+.chg .k{font-size:15px;font-weight:600;color:var(--muted)}
+.chg .v{font-size:30px;font-weight:800}
+.chg .v span{font-size:18px;font-weight:600;color:var(--muted)}
+.bars{width:100%;height:auto;display:block}
+.src .who{font-size:13px;font-weight:700;color:var(--link);text-transform:uppercase;letter-spacing:.6px}
+.src ul,.src ol{margin:0;padding-left:20px;line-height:1.55;color:var(--soft)}
+.foot{font-size:13px;color:var(--muted);line-height:1.5;border-top:1px solid var(--line);padding-top:12px}
+.err{color:#FFD2CB;font-size:15px}
+[hidden]{display:none!important}
+
+@media (min-width:900px){
+  nav.bottom{display:none}
+  nav.top{display:flex}
+  .install{margin-left:10px}
+  main{padding:28px 0 60px}
+  h1{font-size:38px}
+  .hero{flex-direction:row;text-align:left;gap:34px;align-items:center;padding:14px 0}
+  
+  .hero .txt{flex:1}
+  .hero .cta{width:380px;flex:none}
+  
+  .rule::before{display:none}
+  .homegrid{grid-template-columns:1.9fr 1fr;align-items:stretch}
+  .homegrid .side{display:grid;gap:16px}
+  #home.on{min-height:calc(100dvh - 150px)}
+  .hills{margin:6px calc(50% - 50vw) -60px;min-height:150px}
+  .hero img{width:clamp(150px,27vh,240px)!important;height:clamp(150px,27vh,240px)!important}
+  .title{font-size:clamp(54px,9.5vh,76px)!important}
+  .tile.fields{padding:16px 18px}
+  .cols{grid-template-columns:1.15fr 1fr;align-items:start}
+  .cols .left{position:sticky;top:84px}
+  #map{height:480px}
+  .plans{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}
+  .chg{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+  .srcgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
+  .srcgrid .full{grid-column:1 / -1}
+  .steps3{grid-template-columns:repeat(3,1fr)}
+}
+@media (max-width:899px){ .side{display:grid;gap:14px} .side button.tile{font-size:19px;padding:16px} .side button.tile .ico{width:36px;height:36px}
+  .srcgrid{display:flex;flex-direction:column;gap:16px} .two{display:flex;flex-direction:column;gap:16px}}
+@media (max-width:899px){ .hero{padding:0;gap:3px} .hero img{width:88px;height:88px} .kick{font-size:13px;margin-top:2px} .title{font-size:46px} .sub{font-size:22px} .tag{display:none} .hills{min-height:150px} .homegrid{gap:12px;margin-top:12px} button.tile.big{padding:14px 16px!important} .tile.fields{padding:12px 14px;gap:8px} .fields h2{font-size:22px} .frow{padding:10px 4px;font-size:17px} .side{gap:12px!important} .side button.tile{padding:11px 14px!important;font-size:17px!important} }
+@media (max-width:899px) and (max-height:760px){ .tag{display:none} }
+@media (max-width:420px){ button.tile.big{font-size:26px;gap:12px} button.tile.big .ico{width:60px} .stat .v{font-size:21px} }
+</style>
+</head>
+<body>
+<header class="bar"><div class="wrap">
+  <button class="brand" data-go="home" aria-label="Harvest Star home"><img src="globe.png" alt=""><span>Harvest Star</span></button>
+  <nav class="top" aria-label="Main">
+    <button data-go="home">Home</button><button data-go="field">My field</button><button data-go="plan">My plan</button><button data-go="how">How it works</button>
+  </nav>
+  <button class="install" id="install" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.500L12 15l4.500-4.500M5 19h14"/></svg>Add as an app</button>
+</div></header>
+<div class="tip" id="tip" role="dialog" aria-label="Add Harvest Star as an app" hidden><div class="tile"><h2>Add Harvest Star as an app</h2><ul><li><b>iPhone or iPad (Safari):</b> tap the Share button, then "Add to Home Screen".</li><li><b>Android (Chrome):</b> tap the three dots, then "Install app" or "Add to Home screen".</li><li><b>Laptop (Chrome or Edge):</b> click the install icon at the right of the address bar.</li></ul><button class="btn ghost" id="tipClose" type="button">Got it</button></div></div>
+
+<main><div class="wrap">
+
+<!-- ================= HOME ================= -->
+<section class="screen on" id="home">
+  <div class="hero">
+    <img src="globe.png" alt="">
+    <div class="txt">
+      <div class="kick">NASA SPACE APPS 2026</div>
+      <div class="title">Harvest Star</div>
+      <div class="sub">Crop Rotation Planner</div>
+      <div class="rule">BUILT ON NASA EARTH DATA</div>
+      <p class="tag">Pick your field. See which crop rotation suits it best, tested against 40 years of its real weather.</p>
+    </div>
+    <div class="cta"><button class="tile big" data-go="field">
+      <svg class="ico" viewBox="0 0 74 60" aria-hidden="true"><path d="M37 34V18"/><path d="M37 24c-9 0-14-5-15-12 8 0 14 3 15 12zM37 20c8 0 13-5 14-11-8 0-13 3-14 11z"/><path d="M4 50c12-10 24-12 33-12s21 2 33 12"/><path d="M14 56c8-8 15-12 21-13M27 58c4-7 8-12 12-14M41 58c2-6 3-11 4-14M55 57c-1-6-3-10-6-13"/></svg>
+      <span class="sep"></span>Plan a field
+      <svg class="ico chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button></div>
+  </div>
+  <div class="homegrid">
+    <div class="tile fields">
+      <div class="row" style="justify-content:space-between"><h2>My Fields</h2><span class="row" style="gap:12px"><span class="small" id="fieldCount"></span><button type="button" class="fclear" id="clearFields" hidden>Clear all</button></span></div>
+      <div class="inner" id="fieldList" style="padding:4px 14px"></div>
+    </div>
+    <div class="side">
+      <button class="tile" id="goChanged"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="fill:currentColor;stroke:none"><rect x="3" y="13" width="5" height="8" rx="1"/><rect x="9.5" y="8" width="5" height="13" rx="1"/><rect x="16" y="3" width="5" height="18" rx="1"/></svg><span class="sep"></span>What's changed on your field<svg class="ico chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+      <button class="tile" data-go="how"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v6M12 7.5v.01"/></svg><span class="sep"></span><span class="lbl">How we work it out<small>NASA POWER · MERRA-2 · CERES · GPM IMERG · MODIS · SMAP<br>Calibrated with Met Éireann</small></span><svg class="ico chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+  </div>
+  <div class="hills" aria-hidden="true"><svg class="land" viewBox="0 110 1440 320" preserveAspectRatio="none">
+    <defs>
+      <radialGradient id="glow" cx="50%" cy="100%" r="75%" gradientTransform="translate(0 .32) scale(1 .68)"><stop offset="0" stop-color="#F4FCFF"/><stop offset=".28" stop-color="#9FE4FF" stop-opacity=".9"/><stop offset=".62" stop-color="#3FA9FF" stop-opacity=".35"/><stop offset="1" stop-color="#1C7BE8" stop-opacity="0"/></radialGradient>
+      <linearGradient id="hb" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#2F9E3C"/><stop offset="1" stop-color="#0E4A22"/></linearGradient>
+      <linearGradient id="hf" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#D9FF5A"/><stop offset=".12" stop-color="#8FE43C"/><stop offset=".5" stop-color="#2E9A2E"/><stop offset="1" stop-color="#06301A"/></linearGradient>
+      <clipPath id="hc"><path d="M0 224C260 188 520 206 720 240 900 212 1160 180 1440 212V430H0Z"/></clipPath>
+    </defs>
+    <rect x="0" y="50" width="1440" height="200" fill="url(#glow)"/>
+    <path d="M0 208C320 196 620 150 900 168 1120 180 1300 196 1440 204V430H0Z" fill="url(#hb)"/>
+    <path d="M0 224C260 188 520 206 720 240 900 212 1160 180 1440 212V430H0Z" fill="url(#hf)"/>
+    <g clip-path="url(#hc)" fill="none" stroke="#EAFF9A">
+      <path d="M720 242Q-212 282 -1500 450M720 242Q-23 282 -1050 450M720 242Q124 282 -700 450M720 242Q237 282 -430 450M720 242Q325 282 -220 450M720 242Q397 282 -50 450M720 242Q460 282 100 450M720 242Q518 282 240 450M720 242Q573 282 370 450M720 242Q623 316 490 450M720 242Q674 316 610 450M720 242Q720 316 720 450M720 242Q766 316 830 450M720 242Q817 316 950 450M720 242Q867 282 1070 450M720 242Q922 282 1200 450M720 242Q980 282 1340 450M720 242Q1043 282 1490 450M720 242Q1115 282 1660 450M720 242Q1203 282 1870 450M720 242Q1316 282 2140 450M720 242Q1463 282 2490 450M720 242Q1652 282 2940 450" stroke-opacity=".5" stroke-width="1.4" vector-effect="non-scaling-stroke"/>
+      <path d="M-20 240C260 202 520 220 720 254 900 226 1160 194 1460 228M-20 258C260 220 520 238 720 272 900 244 1160 212 1460 246M-20 282C260 244 520 262 720 296 900 268 1160 236 1460 270M-20 314C260 276 520 294 720 328 900 300 1160 268 1460 302M-20 356C260 318 520 336 720 370 900 342 1160 310 1460 344M-20 412C260 374 520 392 720 426 900 398 1160 366 1460 400" stroke-opacity=".38" stroke-width="1.2" vector-effect="non-scaling-stroke"/>
+    </g>
+    <path d="M0 224C260 188 520 206 720 240 900 212 1160 180 1440 212" fill="none" stroke="#F1FFB0" stroke-width="3" stroke-opacity=".9" vector-effect="non-scaling-stroke"/>
+  </svg>
+  <svg class="sprout" viewBox="0 0 120 190">
+    <defs><filter id="sg" x="-80%" y="-40%" width="260%" height="180%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <g filter="url(#sg)" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" transform="translate(-660 -84)">
+      <path d="M720 268V150"/>
+      <path d="M720 236c-30-4-46-24-46-50 26 4 43 20 46 50zM720 236c30-4 46-24 46-50-26 4-43 20-46 50z"/>
+      <path d="M720 196c-24-6-36-24-34-46 22 6 33 22 34 46zM720 196c24-6 36-24 34-46-22 6-33 22-34 46z"/>
+      <path d="M720 152c-14-16-14-38 0-58 14 20 14 42 0 58z"/></g>
+  </svg></div>
+</section>
+
+<!-- ================= MY FIELD ================= -->
+<section class="screen" id="field">
+  <h1>Plan a field</h1>
+  <p class="lead">Four quick questions. Then we test your rotation against every season since 1984.</p>
+  <div class="cols" style="margin-top:16px">
+    <div class="left stack">
+      <div class="steph"><span class="step">1</span><h2>Tap your field on the map</h2></div>
+      <form class="find" id="findForm"><label class="sr" for="findQ">Find a town, townland or Eircode</label><input id="findQ" type="search" placeholder="Town, townland or Eircode" autocomplete="off"><button class="btn ghost" type="submit">Find</button><button class="btn ghost" type="button" id="locate" aria-label="Use my location"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round"><circle cx="12" cy="12" r="3.500"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>Me</button></form>
+      <p class="small" id="findNote" hidden></p>
+      <div id="map" role="application" aria-label="Map: tap your field"></div>
+      <div class="row" id="layerChips" role="group" aria-label="Map view"></div>
+      <p class="small" id="layerNote"></p>
+      <div class="row" style="justify-content:space-between">
+        <p class="small" id="pinNote" style="color:#fff;font-size:15px">No field picked yet.</p>
+        <button class="btn ghost" id="useExample" type="button">Use the example field</button>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="tile">
+        <div class="steph"><span class="step">2</span><h2>What did it grow?</h2></div>
+        <div class="three" id="histSel"></div>
+        <p class="small" id="histNote"></p>
+      </div>
+      <div class="tile">
+        <div class="steph"><span class="step">3</span><h2>How does it drain?</h2></div>
+        <div class="row" id="drainChips" role="group" aria-label="Drainage"></div>
+        <p class="small" id="drainNote"></p>
+        <p class="small" id="soilNote" style="color:var(--link)" hidden></p>
+      </div>
+      <div class="tile">
+        <div class="steph"><span class="step">4</span><h2>What matters most to you?</h2></div>
+        <div class="row" id="prioChips" role="group" aria-label="Priority"></div>
+      </div>
+      <details class="tile quiet">
+        <summary>More about this field (optional)</summary>
+        <p class="small">From your soil test:</p>
+        <div class="three">
+          <label class="field">pH<select id="ph"><option value="">Not sure</option><option>5.8</option><option>6.0</option><option>6.2</option><option selected>6.5</option><option>6.8</option><option>7.0</option><option>7.3</option></select></label>
+          <label class="field">P index<select id="pidx"><option value="">Not sure</option><option>1</option><option>2</option><option selected>3</option><option>4</option></select></label>
+          <label class="field">K index<select id="kidx"><option value="">Not sure</option><option>1</option><option>2</option><option selected>3</option><option>4</option></select></label>
+        </div>
+        <p class="small" style="margin-top:6px">Anything that rules a crop out?</p>
+        <label class="check"><input type="checkbox" id="c_bean"> No buyer for beans nearby</label>
+        <label class="check"><input type="checkbox" id="c_osr"> No buyer for oilseed rape</label>
+        <label class="check"><input type="checkbox" id="c_live"> No livestock farm to buy maize or beet</label>
+        <label class="check"><input type="checkbox" id="c_beet"> No beet harvester or contractor</label>
+        <label class="check"><input type="checkbox" id="c_stock"> I have livestock to feed (show fodder crops)</label>
+        <label class="check"><input type="checkbox" id="c_cover"> I'll sow a cover crop before spring crops</label>
+        <label class="field" style="margin-top:4px">Dry days I need to get a crop sown
+          <select id="minDays"><option value="3">3 days (small acreage)</option><option value="5" selected>5 days</option><option value="8">8 days (bigger farm)</option><option value="12">12 days</option></select></label>
+      </details>
+      <button class="btn" id="go" type="button" disabled>Show my best rotation</button>
+      <p class="small" id="goHint">Tap your field on the map first, or use the example field.</p>
+      <div class="progress" id="prog" hidden><span class="spin" aria-hidden="true"></span><span id="progText"></span></div>
+      <p class="err" id="err" role="alert"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= MY PLAN ================= -->
+<section class="screen" id="plan">
+  <h1>Your best rotation</h1>
+  <p class="lead" id="planLead"></p>
+  <div class="stack" style="margin-top:16px">
+    <div class="tile verdict" id="verdict"></div>
+    <button class="calib" id="calib" type="button" data-go="how"></button>
+    <div class="plans" id="planCards"></div>
+    <p class="small">Green = good. Amber = keep an eye on it. Red = a real risk. These are options to talk through with your adviser, not orders.</p>
+    <div class="two">
+      <div class="tile quiet">
+        <h3>What if the weather shifts?</h3>
+        <div class="row" id="scenChips" role="group" aria-label="Weather scenario"></div>
+        <p class="small" id="scenNote"></p>
+      </div>
+      <div class="stack">
+        <button class="tile" id="goChanged2"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="fill:currentColor;stroke:none"><rect x="3" y="13" width="5" height="8" rx="1"/><rect x="9.5" y="8" width="5" height="13" rx="1"/><rect x="16" y="3" width="5" height="18" rx="1"/></svg><span class="sep"></span>What's changed on your field<svg class="ico chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+        <button class="btn ghost" data-go="field" style="width:100%">Change my answers</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= WHAT'S CHANGED ================= -->
+<section class="screen" id="changed">
+  <h1>What's changed on your field</h1>
+  <p class="lead" id="chgLead"></p>
+  <div class="stack" style="margin-top:16px">
+    <div class="chg" id="chgTiles"></div>
+    <div class="tile">
+      <h2 id="barsTitle">Dry days to sow, every year</h2>
+      <p class="small" id="barsNote" style="font-size:15px;color:var(--soft)"></p>
+      <div class="row" id="barCrop" role="group" aria-label="Crop to show"></div>
+      <svg class="bars" id="bars" role="img"></svg>
+      <p class="small" id="barsLegend"></p>
+    </div>
+    <button class="btn ghost" data-go="plan" style="align-self:flex-start">Back to my plan</button>
+  </div>
+</section>
+
+<!-- ================= HOW IT WORKS ================= -->
+<section class="screen" id="how">
+  <h1>How it works</h1>
+  <p class="lead">Everything here is free, public data. NASA sees the weather over every field on Earth; your country's own weather service and farm advisers make it fit your field.</p>
+  <div class="srcgrid" id="srcCards" style="margin-top:16px"></div>
+  <p class="foot" style="margin-top:18px">Harvest Star is a NASA Space Apps Challenge 2026 project (Field Shift: Adapting Farms with NASA Data), built at HackAthlone. It uses NASA data but is not endorsed by NASA. Data: NASA POWER (NASA Langley Research Center); Met Éireann 1991–2020 rainfall averages (CC BY 4.0); Teagasc Crop Costs and Returns 2025; Department of Agriculture, Food and the Marine anonymised LPIS (CC BY 4.0); Irish Soil Information System (Teagasc and EPA); NASA GIBS imagery; place search © OpenStreetMap contributors. Map imagery © Esri and its partners. Logo artwork made with AI assistance.</p>
+</section>
+
+</div></main>
+
+<nav class="bottom" aria-label="Main">
+  <button data-go="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>Home</button>
+  <button data-go="field"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.800-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>My field</button>
+  <button data-go="plan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12.500l9 5 9-5M3 17l9 5 9-5"/></svg>My plan</button>
+  <button data-go="how"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.500"/><path d="M12 11v6M12 7.500v.01"/></svg>How it works</button>
+</nav>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
