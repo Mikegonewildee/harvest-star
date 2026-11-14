@@ -8,7 +8,7 @@ NASA Space Apps Challenge 2026 · Field Shift: Adapting Farms with NASA Data · 
 
 Harvest Star is a decision-support tool for tillage farmers. Tap a field, say what it grew and what matters most to you, and it compares your current rotation with two alternatives by replaying each one through every season NASA has measured over that field since 1984.
 
-It suggests options to explore with an adviser. It does not replace the farmer's judgment.
+It suggests options to explore. It does not replace the farmer's judgment.
 
 ## The four screens
 
@@ -53,7 +53,7 @@ Harvest Star uses NASA data but is not endorsed by NASA.
 
 ## Use of AI
 
-Built during the hackathon weekend with Claude (Anthropic) as a coding assistant. The farming rules, data choices and design are the entrant's.
+Built during the hackathon weekend with Claude (Anthropic) as a coding assistant. The farming rules, data choices and design are my own.
 
 ## Limits
 
