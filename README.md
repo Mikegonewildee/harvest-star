@@ -6,6 +6,8 @@ NASA Space Apps Challenge 2026 · Field Shift: Adapting Farms with NASA Data · 
 
 **Try it live:** https://harvest-star.netlify.app
 
+**Demo slides (PowerPoint):** [Harvest Star NASA Space Apps 2026 Demo](Harvest%20Star%20NASA%20Space%20Apps%202026%20Demo.powerpoint.pptx)
+
 Harvest Star is a decision-support tool for tillage farmers. Tap a field, say what it grew and what matters most to you, and it compares your current rotation with two alternatives by replaying each one through every season NASA has measured over that field since 1984.
 
 It suggests options to explore. It does not replace the farmer's judgment.
