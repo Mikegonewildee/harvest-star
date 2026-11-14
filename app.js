@@ -238,6 +238,8 @@
   const seasonLabel = (c, hy) => C[c].autumn ? 'autumn ' + (hy - 1) : 'spring ' + hy;
   const plainName = (p) => p.rot.every(c => c === p.rot[0]) ? C[p.rot[0]].short + ' every year' : p.rot.map((c, i) => i ? C[c].short.toLowerCase() : C[c].short).join(', then ');
   function badYears(p) { const share = p.rot.reduce((a, c, i) => a + (p.perCropLast[i].seasons ? p.perCropLast[i].missedN / p.perCropLast[i].seasons : 0), 0) / p.rot.length; return Math.round(share * 10); }
+  // a rotation with a real miss never reads as a flat zero: one crop missed once in ten rounds down
+  function badLabel(p) { const n = badYears(p); return n < 1 && p.perCropLast.some(x => x.missedN > 0) ? 'Under 1 in 10' : n + ' in 10'; }
   function worst(p) { const ev = []; p.rot.forEach((c, i) => p.perCropLast[i].missed.forEach(hy => { if (!ev.some(u => u.c === c && u.hy === hy)) ev.push({ c, hy }); })); ev.sort((a, b) => b.hy - a.hy); return ev; }
   function lookback(p) {
     const n = badYears(p), ev = worst(p);
@@ -346,7 +348,7 @@
         '<div class="stats' + (showFod ? ' four' : '') + '">' +
           '<div class="stat"><div class="k">Money left</div><div class="v">' + euro(p.margin) + '</div><div class="s">a hectare a year, after costs</div></div>' +
           '<div class="stat"><div class="k">Fertiliser</div><div class="v">' + p.nitrogen + ' kg</div><div class="s">nitrogen a hectare a year</div></div>' +
-          '<div class="stat"><div class="k">Bad sowing years</div><div class="v">' + by + ' in 10</div><div class="s">too wet to sow on time</div></div>' +
+          '<div class="stat"><div class="k">Bad sowing years</div><div class="v">' + badLabel(p) + '</div><div class="s">too wet to sow on time</div></div>' +
           (showFod ? '<div class="stat"><div class="k">Winter fodder</div><div class="v">' + (p.hasFodder ? p.fodder.toFixed(1) + ' t' : 'None') + '</div><div class="s">' + (p.hasFodder ? 'dry matter a hectare a year · short in ' + p.shortLast.length + ' of last 10 summers' : 'no fodder crop in this plan') + '</div></div>' : '') +
         '</div>' +
         '<div class="lights">' + lights + '</div>' + watches +
