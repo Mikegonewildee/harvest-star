@@ -10,12 +10,13 @@ Harvest Star is a decision-support tool for tillage farmers. Tap a field, say wh
 
 It suggests options to explore. It does not replace the farmer's judgment.
 
-## The four screens
+## The screens
 
-1. **My field** – tap the field on a satellite map; last three crops; drainage class and soil test (pH, P and K index); priority (balanced, profit, less fertiliser, soil health, low risk); optional constraints (no buyer for beans, no beet harvester…).
-2. **My options** – the current rotation plus two alternatives. Each has four risk lights (water, disease, market, season), a look-back line ("over the last 10 seasons, this rotation would have struggled in 2 of them"), money, nitrogen, soil and weather figures, and a month-by-month bare/green strip. Scenario buttons re-run the look-back with wetter autumns, wetter springs or drier weather.
-3. **Why** – one plain sentence per option, the NASA signal behind it, what each crop does for the soil, what the tool can't see, and what to check with a local adviser. A chart shows days fit to sow in every season on record.
-4. **Where this comes from** – each data source named, how satellite-era model data and ground gauges differ and why both are used, and the tool's limits.
+1. **Home** – plan a field, open a saved field (or remove it), and jump to what's changed or how it works.
+2. **My field** – tap the field on a satellite map; last three crops; drainage class and soil test (pH, P and K index); priority (balanced, profit, less fertiliser, soil health, low risk); optional constraints (no buyer for beans, no beet harvester…).
+3. **My plan** – the current rotation plus two alternatives, ranked. Each has four risk lights (weather, disease, buyer, season), a look-back line on the last 10 seasons, and money, nitrogen and sowing figures. "Why, and what to check" on each option gives one plain sentence, the NASA signal behind it, what each crop does for the soil and what the tool can't see. Scenario buttons re-run the look-back with wetter autumns, wetter springs or drier weather.
+4. **What's changed** – the first half of NASA's record for the field against the second half: dry days to sow in autumn and spring, summer drought days and temperature, with a chart of days fit to sow in every season on record.
+5. **How it works** – each data source named, how NASA's model data is calibrated with Met Éireann's ground records and why both are used, and the tool's limits.
 
 ## How it works
 
@@ -38,6 +39,7 @@ No machine learning: every number can be traced to a published method or record.
 - `rain_grid.json` – Met Éireann 1991–2020 monthly rainfall averages, resampled
 - `example.json` – the example field (outline and crop history)
 - `example_power.json` – a saved NASA POWER pull for the example field, used only if NASA can't be reached
+- `validation/` – the check of the engine against Met Éireann's Mullingar station records, and its results
 
 Run it by serving the folder with any static web server, for example `python3 -m http.server`.
 
